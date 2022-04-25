@@ -1,0 +1,99 @@
+#+title: Модель измерения
+
+* Модуль
+:PROPERTIES:
+:ID:       c88944cf-0b91-4abe-be78-ca97c1948a3d
+:END:
+
+#+BEGIN_SRC python :noweb yes :tangle model.py
+  <<model:Импорт>>
+
+  <<model:Определения>>
+#+END_SRC
+
+* База данных
+
+Создаем объект базы данных ~db~.
+
+#+BEGIN_SRC python :noweb-ref model:Импорт
+  from flask_sqlalchemy import SQLAlchemy
+#+END_SRC
+
+#+BEGIN_SRC python :noweb-ref model:Определения
+  db = SQLAlchemy()
+#+END_SRC
+
+* TODO Измерение
+
+Измерение включает в себя:
+
+- адрес цели;
+- символическое имя;
+- признак активности;
+- штамп времени измерения;
+- RIPE-идентификатор =Ping=-измерения;
+- RIPE-идентификатор =Trace=-измерения;
+- RIPE-идентификатор =SSL=-измерения;
+- =Ping=-доступность: процент зондов, которые видят цель через =Ping=
+- =Ping=-потери: процент утерянных пакетов =Lost Packages=;
+- =Trace=-доступность: процень зондов, которые видят цель через =Traceroute=;
+- =SSL=-доступность: процень зондов, которые видят сертификаты цели;
+- описание ошибки измерения.
+
+#+BEGIN_SRC python :noweb yes :noweb-ref model:Определения
+  class Measurement(db.Model):
+      __tablename__ = 'measurements'
+
+      id = db.Column(db.Integer, primary_key=True)
+      topic = db.Column(db.String(255), nullable=False)
+      resource = db.Column(db.String(255), nullable=False)
+      address = db.Column(db.String(255), nullable=False)
+      proto = db.Column(db.String(255), nullable=False)
+      is_active = db.Column(db.Boolean, nullable=False, default=True)
+      stamp = db.Column(db.DateTime)
+      ping_id = db.Column(db.Integer)
+      trace_id = db.Column(db.Integer)
+      ssl_id = db.Column(db.Integer)
+      ping_access = db.Column(db.Float)
+      lost_packs = db.Column(db.Float)
+      trace_access = db.Column(db.Float)
+      ssl_access = db.Column(db.Float)
+      error = db.Column(db.String(255))
+
+      __table_args__ = (db.UniqueConstraint('address', 'proto', name='unq_target'),)
+
+      def __init__(self, topic, resource, address, proto):
+          self.topic = topic
+          self.resource = resource
+          self.address = address
+          self.proto = proto
+
+      def __repr__(self):
+          return str(self.address)
+
+      <<model:Measurement:Определения>>
+#+END_SRC
+
+** Создание измерения
+
+Для создания измерения достаточно указать его адрес. Так как адрес однозначно определяет измерение, то
+нужно не просто вставить новую запись, а вначале проверить, есть ли такое измерение в базе данных. Если
+оно есть, то для него просто устанавливается флажок активности, в противном случае измерение создается
+заново.
+
+#+begin_src python :noweb-ref model:Measurement:Определения
+  def make(topic, resource, address, proto):
+      measurements = Measurement.query.filter_by(address=address, proto=proto)
+
+      if measurements.count() > 0:
+          measurement = measurements.one()
+          measurement.topic = topic
+          measurement.resource = resource
+          measurement.is_active = True
+      else:
+          measurement = Measurement(topic, resource, address, proto)
+
+      return measurement
+#+end_src
+
+* TODO Добавить протокол

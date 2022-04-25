@@ -1,0 +1,77 @@
+#+title: Миграции
+
+* Приложение
+:PROPERTIES:
+:ID:       34d341fc-4f88-4164-ad02-54987a4c0edb
+:END:
+
+#+BEGIN_SRC python :noweb yes :tangle migrate.py
+  <<migrate:Импорт>>
+
+  <<migrate:Определения>>
+#+END_SRC
+
+Импортируем базу данных из моделей.
+
+#+BEGIN_SRC python :noweb-ref migrate:Импорт
+  from model import db
+#+END_SRC
+
+Создадим приложение и настроим его.
+
+#+BEGIN_SRC python :noweb-ref migrate:Импорт
+  from flask import Flask
+  from config import Config
+#+END_SRC
+
+#+BEGIN_SRC python :noweb-ref migrate:Определения
+  app = Flask(__name__)
+  app.config.from_object(Config)
+#+END_SRC
+
+Настроим базу данных.
+
+#+BEGIN_SRC python :noweb-ref migrate:Определения
+  db.init_app(app)
+#+END_SRC
+
+Создадим объект миграции.
+
+#+BEGIN_SRC python :noweb-ref migrate:Импорт
+  from flask_migrate import Migrate
+#+END_SRC
+
+#+BEGIN_SRC python :noweb-ref migrate:Определения
+  migrate = Migrate(app, db)
+#+END_SRC
+
+* Инициализация
+
+Инициализация создает каталог миграций =migrations=, это делается командой
+
+#+BEGIN_SRC sh :results raw
+  FLASK_APP=migrate.py flask db init
+#+END_SRC
+
+#+RESULTS:
+
+* Миграция
+
+Каждый шаг миграции состоит из двух шагов --- /генерации сценария обновления/ и собственно /обновления
+базы данных/. Шаг генерации выполняется командой =migrate=. При этом желательно указать суть изменений в
+комментарии.
+
+#+BEGIN_SRC sh :results raw
+  FLASK_APP=migrate.py flask db migrate -m "Initial migration"
+#+END_SRC
+
+#+RESULTS:
+Generating /home/eugine/job/state/fisher/migrations/versions/0e20cabcdb12_initial_migration.py ...  done
+
+После этого обновим базу данных командой =upgrate=.
+
+#+BEGIN_SRC sh :results raw
+  FLASK_APP=migrate.py flask db upgrade
+#+END_SRC
+
+#+RESULTS:

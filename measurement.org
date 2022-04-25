@@ -1,0 +1,64 @@
+#+title: Проверка доступности целей
+
+Для успешной атаки нужно регулярно проверять доступность целей. Такую проверку будем называть
+/Измерением/. Для измерений предназначен модуль =Measurement=.
+
+Для измерений используется служба RIPE, данные из которой получаются через внутренний REST API.
+
+* Модуль сервера
+:PROPERTIES:
+:ID:       ac664f6f-8888-493f-8593-284e6312086a
+:END:
+
+#+BEGIN_SRC python :noweb yes :tangle measurement/__init__.py
+  <<measurement:Импорт>>
+
+  <<measurement:Параметры>>
+
+  <<measurement:Определения>>
+
+  <<measurement:Обработчики>>
+#+END_SRC
+
+* Приложение
+
+#+BEGIN_SRC python :noweb-ref measurement:Импорт
+  from flask import Flask
+  from config import Config
+  from model import db
+#+END_SRC
+
+#+BEGIN_SRC python :noweb-ref measurement:Определения
+  app = Flask(__name__)
+  app.config.from_object(Config)
+  db.init_app(app)
+#+END_SRC
+
+* Обработчики
+** TODO Отображение результатов измерения
+
+Результаты измерения отображаются в корневом вызове.
+
+#+BEGIN_SRC python :noweb-ref measurement:Импорт
+  from flask import render_template
+  from model import Measurement
+  from ripe.atlas.cousteau import AtlasResultsRequest
+  from ripe.atlas.sagan import Result
+#+END_SRC
+
+#+begin_src python :noweb-ref measurement:Определения
+  @app.route("/")
+  def index():
+      measurements = Measurement.query
+      measurements = measurements.filter_by(proto='tcp', is_active=True)
+      measurements = measurements.filter(Measurement.stamp != None)
+      measurements = measurements.order_by(Measurement.trace_access.desc())
+      measurements = measurements.order_by(Measurement.ssl_access.desc())
+      measurements = measurements.order_by(Measurement.topic.asc())
+      measurements = measurements.order_by(Measurement.resource.asc())
+      measurements = measurements.all()
+      return render_template('index.html', measurements=measurements)
+#+end_src
+
+#+RESULTS:
+

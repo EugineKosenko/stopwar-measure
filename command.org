@@ -1,0 +1,358 @@
+#+title: Консольные команды
+
+Консольные команды используются для сложного управления данными. Например, добавим набор команд =CRUD=
+для управления пользователями. Такой набор не требует создание отдельного раздела в админке.
+
+Для реализации команд используется механизм, описанный в https://flask.palletsprojects.com/en/2.0.x/cli/,
+который в свою очередь основан на [[https://click.palletsprojects.com/en/8.0.x/][Click]].
+
+#+BEGIN_SRC python :noweb yes :tangle command.py
+  <<command:Импорт>>
+
+  <<command:Определения>>
+#+END_SRC
+
+* Приложение
+
+Сначала создадим приложение и проинициализируем базу.
+
+#+BEGIN_SRC python :noweb-ref command:Импорт
+  from flask import Flask
+  from config import Config
+#+END_SRC
+
+#+BEGIN_SRC python :noweb-ref command:Определения
+  app = Flask(__name__)
+  app.config.from_object(Config)
+  db.init_app(app)
+#+END_SRC
+
+* Группа команд для управления измерениями
+
+Создадим группу команд ~measurement~ для управления измерениями.
+
+#+BEGIN_SRC python :noweb-ref command:Импорт
+  from flask.cli import AppGroup
+#+END_SRC
+
+#+BEGIN_SRC python :noweb-ref command:Определения
+  measurement = AppGroup('measurement')
+  app.cli.add_command(measurement)
+#+END_SRC
+
+** Добавление измерения
+
+Команда ~measurement add~ добавляет новое измерение, используя параметр в качестве имени.
+
+#+BEGIN_SRC python :noweb-ref command:Импорт
+  import click
+  from model import db, Measurement
+#+END_SRC
+
+#+BEGIN_SRC python :noweb-ref command:Определения
+  @measurement.command('add')
+  @click.argument('name')
+  @click.argument('address')
+  def add_measurement(name, address):
+      Measurement.add(name, address)
+#+END_SRC
+
+Для проверки создадим некоторое измерение.
+
+#+BEGIN_SRC sh
+  FLASK_APP=command flask measurement add www.crpt.ru
+#+END_SRC
+
+#+RESULTS:
+
+** Добавление списка измерений
+
+Список измерений можно задать в виде файла, который читается с помощью команды ~measurement file~.
+
+#+BEGIN_SRC python :noweb-ref command:Импорт
+  import yaml
+#+END_SRC
+
+#+BEGIN_SRC python :noweb-ref command:Определения
+  @measurement.command('file')
+  @click.argument('name')
+  def add_file(name):
+      with open(name, 'r') as f:
+          data = yaml.safe_load(f)
+          for topic in data['topics']:
+              for resource in topic['resources']:
+                  for target in resource['targets']:
+                      for dest in parse_target(target):
+                          db.session.add(Measurement.make(
+                              topic['name'], resource['name'],
+                              dest['address'], dest['proto']))
+          db.session.commit()
+#+END_SRC
+
+** Выполнение измерений
+
+При выполнении перебираются активные измерения, и для каждого такого измерения создается измерение RIPE,
+а его идентификатор сохраняется. При этом отмечается время измерения. В качестве источников берутся 10
+зондов из России.
+
+При выполнении всегда выполняются измерения:
+
+- которые еще не производились (штамп времени пуст);
+- измерения, которые в прошлый раз завершились с ошибкой (поле ошибки не пусто);
+- измерения, которые старше =6= часов.
+
+#+begin_src python :noweb-ref command:Импорт
+  from datetime import datetime, timedelta
+  from ripe.atlas.cousteau import Ping, Traceroute, Sslcert, AtlasSource, AtlasCreateRequest, MeasurementRequest
+  from sqlalchemy import or_
+#+end_src
+
+#+begin_src python :noweb yes :noweb-ref command:Определения
+  @measurement.command('execute')
+  def execute():
+      measurements = Measurement.query.filter_by(proto='tcp', is_active=True)
+      measurements = measurements.filter(
+          or_(Measurement.error != None,
+              Measurement.stamp == None,
+              Measurement.stamp < datetime.now() - timedelta(hours=6)))
+
+      source = AtlasSource(
+          type='country',
+          value='RU',
+          requested=10)
+
+      for measurement in measurements.all():
+          <<command:execute:Типы-измерений>>
+
+          request = AtlasCreateRequest(
+              start_time=datetime.utcnow() + timedelta(seconds=1),
+              key="<key>",
+              measurements=[trace, ssl],
+              sources=[source],
+              is_oneoff=True)
+
+          is_success, response = request.create()
+          print(measurement.address, is_success)
+          if is_success:
+              <<command:execute:Регистрация-измерений>>
+              measurement.stamp = datetime.now()
+              measurement.error = None
+          else:
+              measurement.error = response
+              print(response)
+          db.session.add(measurement)
+
+      db.session.commit()
+#+end_src
+
+*** COMMENT Измерение =Ping=
+
+#+begin_src python :noweb-ref command:execute:Типы-измерений
+  ping = Ping(
+      af=4,
+      target=measurement.address,
+      description=f"Ping %s" % measurement.address)
+#+end_src
+
+#+begin_src python :noweb-ref command:execute:Регистрация-измерений
+  measurement.ping_id = response['measurements'][0]
+#+end_src
+
+*** Измерение =Trace=
+
+#+begin_src python :noweb-ref command:execute:Типы-измерений
+  trace = Traceroute(
+      af=4,
+      target=measurement.address,
+      protocol='TCP',
+      description=f"Trace %s" % measurement.address)
+#+end_src
+
+#+begin_src python :noweb-ref command:execute:Регистрация-измерений
+  measurement.trace_id = response['measurements'][0]
+#+end_src
+
+*** Измерение =SSL=
+
+#+begin_src python :noweb-ref command:execute:Типы-измерений
+  ssl = Sslcert(
+      af=4,
+      target=measurement.address,
+      description=f"SSL %s" % measurement.address)
+#+end_src
+
+#+begin_src python :noweb-ref command:execute:Регистрация-измерений
+  measurement.ssl_id = response['measurements'][1]
+#+end_src
+
+** Получение результатов
+
+Команда ~measurement show~ показывает результаты измерений.
+
+#+begin_src python :noweb-ref command:Импорт
+  from ripe.atlas.cousteau import AtlasResultsRequest
+  from ripe.atlas.sagan import Result
+#+end_src
+
+#+begin_src python :noweb yes :noweb-ref command:Определения
+  @measurement.command('show')
+  def show():
+      measurements = Measurement.query.filter_by(proto='tcp', is_active=True).all()
+
+      for measurement in measurements:
+          <<command:show:Обработка-результатов>>
+
+          db.session.add(measurement)
+
+          print(measurement.address, measurement.trace_access, measurement.ssl_access)
+
+          db.session.commit()
+#+end_src
+
+*** COMMENT Обработка результатов =Ping=
+
+#+begin_src python :noweb-ref command:show:Обработка-результатов
+  is_success, results = AtlasResultsRequest(msm_id=measurement.ping_id).create()
+  if is_success:
+      sent = 0
+      received = 0
+      unreachable = 0
+      for result in results:
+          result = Result.get(result)
+
+          sent += result.packets_sent
+          received += result.packets_received
+
+          if result.rtt_average is None:
+              unreachable += 1
+
+      if len(results) == 0:
+          measurement.ping_access = None
+      else:
+          measurement.ping_access = int((1 - unreachable / len(results)) * 100)
+      measurement.lost_packs = int((1 - received / sent) * 100)
+#+end_src
+
+*** Обработка результатов =Trace=
+
+#+begin_src python :noweb-ref command:show:Обработка-результатов
+  is_success, results = AtlasResultsRequest(msm_id=measurement.trace_id).create()
+
+  if is_success:
+      reachable = 0
+      for result in results:
+          result = Result.get(result)
+          if result.is_success:
+              reachable += 1
+
+      if len(results) == 0:
+          measurement.trace_access = None
+      else:
+          measurement.trace_access = int(reachable / len(results) * 100)
+#+end_src
+
+*** Обработка результатов =SSL=
+
+#+begin_src python :noweb-ref command:show:Обработка-результатов
+  is_success, results = AtlasResultsRequest(msm_id=measurement.ssl_id).create()
+
+  if is_success:
+      unreachable = 0
+      for result in results:
+          result = Result.get(result)
+          if result.response_time is None:
+              unreachable += 1
+
+      if len(results) == 0:
+          measurement.ssl_access = None
+      else:
+          measurement.ssl_access = int((1 - unreachable / len(results)) * 100)
+#+end_src
+
+** TODO COMMENT Определение количества работающих измерений
+
+#+begin_src python :noweb-ref command:Импорт
+  import requests
+#+end_src
+
+#+begin_src python :noweb-ref command:Определения
+  @measurement.command('check')
+  def check():
+      resp = requests.get("https://atlas.ripe.net/api/v2/measurements/my?key=4f1a8e31-6dbc-4545-a120-e43d5b5290b4&sort=-start_time&mine=true&status=0,1,2");
+      print(resp.json())
+#+end_src
+
+#+RESULTS:
+
+* TODO Анализ цели
+
+Функция ~parse_target~ разбирает "сырой" источник ~source~ в виде строки и строит список целей.
+
+#+begin_src python :noweb yes :noweb-ref command:Определения
+  def parse_target(source):
+      result = []
+      <<command:parse_target:Действия>>
+      return result
+#+end_src
+
+Упростим ситуацию, и будем строить только измерения.
+
+Начнем с того, что разделим источник по типу. =web= отличается от =socket= тем, что в начале у нее идет
+префикс ~http~.
+
+#+BEGIN_SRC python :noweb-ref command:Импорт
+  import re
+#+END_SRC
+
+#+begin_src python :noweb yes :noweb-ref command:parse_target:Действия
+  if re.search(r"^http", source):
+      <<command:parse_target:web:Действия>>
+  else:
+      <<command:parse_target:socket:Действия>>
+      pass
+#+end_src
+
+** TODO Анализ =web=-цели
+
+=Web=-цель разбирается на /Протокол/ (~proto~), /Адрес/ (~address~) и /Путь/ (~path~). Для формирования
+измерения достаточно использовать адрес и протокол. Адрес используется без изменений, а протокол
+анализируется, он должен быть либо ~http~ (транслируется в ~80/tcp~), либо ~https~ (~443/tcp~).
+
+#+begin_src python :noweb yes :noweb-ref command:parse_target:web:Действия
+  m = re.fullmatch(r"(http|https)://([a-z0-9\-\.]+)(.*)", source)
+  if m[1] == 'http':
+      port = 80
+  elif m[1] == 'https':
+      port = 443
+  else:
+      raise "Неправильный протокол"
+  result.append({
+      'address': m[2],
+      'proto': 'tcp'})
+#+end_src
+
+** TODO Анализ =socket=-цели
+
+Описание =socket=-цели содержит адрес, а потом в скобках перечисление портов через запятую в формате
+=<port>/<proto>=.
+
+Сначала разделим всю цель на адрес и список портов.
+
+#+begin_src python :noweb yes :noweb-ref command:parse_target:socket:Действия
+  m = re.fullmatch(r"([^ ]+) \(([^\)]+)\)", source)
+  address, ports = m[1], m[2].split(", ")
+#+end_src
+
+После этого перебираем каждый порт и выделяем в нем протокол. При этом псевдопротоколы ~http~ и ~https~
+заменяем на ~tcp~.
+
+#+begin_src python :noweb yes :noweb-ref command:parse_target:socket:Действия
+  for p in ports:
+      port, proto = p.split("/")
+      if proto in ['http', 'https']:
+          proto = 'tcp'
+      result.append({
+          'address': address,
+          'proto': proto})
+#+end_src
+

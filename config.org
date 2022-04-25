@@ -1,0 +1,32 @@
+#+title: Модуль настройки
+
+Все приложения используют единый модуль конфигурации
+
+#+BEGIN_SRC python :noweb yes :tangle config.py
+  <<config:Импорт>>
+
+  <<config:Определения>>
+#+END_SRC
+
+Приложения принято инициализировать из некого общего класса =Config=.
+
+#+BEGIN_SRC python :noweb yes :noweb-ref config:Определения
+  class Config(object):
+      <<config:Config:Определения>>
+#+END_SRC
+
+* Параметры базы данных
+
+#+BEGIN_SRC python :noweb-ref config:Config:Определения
+  SQLALCHEMY_DATABASE_URI = 'mysql://user:password@localhost/db'
+  SQLALCHEMY_TRACK_MODIFICATIONS = True
+#+END_SRC
+
+* Параметры безопасности
+
+  Секретный ключ используется для работы системы безопасности.
+
+#+BEGIN_SRC python :noweb-ref config:Config:Определения
+  SECRET_KEY = 'a really really really really long secret key'
+#+END_SRC
+

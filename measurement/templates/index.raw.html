@@ -1,0 +1,73 @@
+<head>
+  <meta charset="utf-8" />
+  <title>IT-Army of Ukraine: Resources Monitor</title>
+</head>
+<body>
+  <h1>IT-Армія України: Монітор доступності ресурсів</h1>
+  <table width="100%">
+    <tr>
+      <td width="100%">
+        <p>Ця сторінка відображає доступність ресурсів, за якими спостерігає IT-Армія України.</p>
+        
+        <p>Доступність ресурсу визначається за можливістю отримати доступ за traceroute з десяти різних
+          контрольних точок (зондів). Відсоток доступності вказує, скільки зондів отримують успішні
+          відповіді на свої запити до ресурсу.</p>
+        
+        <p>Додатково визначається можливість отримати сертифікати захищеного з'єднання (SSL) з тих самих
+            точок.</p>
+        
+        <p>Посилання дозволяють відкрити ресурс для перевірки за звичайною (HTTP) та захищеною (HTTPS)
+        адресою. Посилання CHECK відкриває ресурс для превірки на
+        сервісі <a href="https://check-host.net/" target="_blank">check-host.net</a> також за звичайною
+        адресою. На тому ж ресурсі можна перевірити ресурс за іншими ознаками.</p>
+
+        <p>Проект знаходиться в стані концепту, тому зараз усі результати впорядковуються спочатку за
+          доступністю, а потім за відсотком втрат.</p>
+        
+        <p>Окрім зручного впорядкування планується також добавити перевірку шляху до ресурсу (TRACEROUTE)
+        за протоколом TCP.</p>
+        
+        <p>Свої побажання з розвитку, пропозиції допомоги та інше пишіть мені
+          у <a href="https://t.me/kosenko1972">Telegram</a></p>
+      </td>
+    </tr>
+  </table>
+  <div id="stats">
+    <table width="90%">
+      <thead>
+        <tr>
+          <th>Назва</th>
+          <th>Адреса</th>
+          <th>Остання перевірка</th>
+          <th>Trace</th>
+          <th>SSL</th>
+          <th>Мапа</th>
+          <th>Посилання</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for measurement in measurements %}
+        <tr>
+          <td style="text-align: center;">{{ measurement.name }}</td>
+          <td style="text-align: center;">{{ measurement.address }}</td>
+          <td style="text-align: center;">{{ measurement.stamp }}</td>
+          <td style="text-align: center;">
+            <a href="https://atlas.ripe.net/measurements/{{ measurement.trace_id }}/#probes" target="_blank">{{ measurement.trace_access }}</a>
+          </td>
+          <td style="text-align: center;">
+            <a href="https://atlas.ripe.net/measurements/{{ measurement.ssl_id }}/#probes" target="_blank">{{ measurement.ssl_access }}</a>
+          </td>
+          <td style="text-align: center;">
+            <a href="https://atlas.ripe.net/measurements/{{ measurement.ssl_id }}/#map" target="_blank">Мапа</a>
+          </td>
+          <td style="text-align: center;">
+            <a href="http://{{ measurement.name }}/" target="_blank">HTTP</a>
+            <a href="https://{{ measurement.name }}/" target="_blank">HTTPS</a>
+            <a href="https://check-host.net/check-http?host={{ measurement.address }}" target="_blank">CHECK</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+   </div>
+</body>

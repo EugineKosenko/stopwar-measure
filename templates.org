@@ -1,0 +1,326 @@
+#+title: Шаблоны страниц
+
+Определим базовый шаблон =index.html=
+
+#+BEGIN_SRC html :noweb yes :tangle measurement/templates/index.html
+  <!DOCTYPE html>
+  <html lang="ru">
+    <head>
+      <<index:head:Содержимое>>
+    </head>
+    <body class="
+                 <<index:body:css-классы>>
+                 ">
+      <<index:body:Содержимое>>
+      <<index:body:js-код>>
+    </body>
+  </html>
+#+END_SRC
+
+** Заголовок
+
+Определим стандартные тэги кодировки и адаптивности.
+
+#+BEGIN_SRC html :noweb-ref index:head:Содержимое
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+#+END_SRC
+
+Добавим значок-фаворит.
+
+#+BEGIN_SRC html :noweb-ref index:head:Содержимое
+  <link rel="icon" href="../static/assets/favicon.ico" type="image/x-icon">
+#+END_SRC
+
+Далее, определим титул страницы.
+
+#+BEGIN_SRC html :noweb-ref index:head:Содержимое
+  <title>IT-Army of Ukraine: Resources Monitor</title>
+#+END_SRC
+
+Наконец, определим стили.
+
+#+BEGIN_SRC html :noweb-ref index:head:Содержимое
+  <!-- Google Font: Source Sans Pro -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="../static/assets/plugins/fontawesome-free/css/all.min.css">
+  <!-- Theme style -->
+  <link rel="stylesheet" href="../static/assets/css/adminlte.min.css">
+#+END_SRC
+
+** Тело
+
+*** Общие стили
+
+Общий стиль определяется набором =css=-классов тэга =body=.
+
+#+BEGIN_SRC html :noweb-ref index:body:css-классы
+  hold-transition
+#+END_SRC
+
+Класс =hold-transition= больше похож на стандартную магию, которая, согласно документации, должна
+исправить некоторые ошибки IE: /class hold-transition is a transition IE to do some repair, references to
+the body, no deep meaning/. На самом деле этот класс сам по себе не используется, а только для
+коллективного селектора всех дочерних классов, где по умолчанию останавливается всякая анимация
+(см. [[file:admin/static/assets/css/adminlte.min.css]]).
+
+*** Общий =JS=-код
+
+Зададим =JS=-код, общий для =AdminLTE=. Однако, он в свою очередь потребует код =Bootstrap=, а тот ---
+=jQuery=.
+
+#+BEGIN_SRC html :noweb-ref index:body:js-код
+  <!-- jQuery -->
+  <script src="../static/assets/plugins/jquery/jquery.min.js"></script>
+  <!-- Bootstrap 4 -->
+  <script src="../static/assets/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+   <!-- AdminLTE App -->
+  <script src="../static/assets/js/adminlte.js"></script>
+#+END_SRC
+
+*** Содержимое
+
+Определим в теле раздел-контейнер =wrapper=
+
+#+BEGIN_SRC html :noweb yes :noweb-ref index:body:Содержимое
+  <div class="wrapper">
+    <<index:body:wrapper:Содержимое>>
+  </div>
+#+END_SRC
+
+Класс =wrapper= определяет, что контейнер помещается в относительное положение (=position: relative=), но
+с нулевым смещением. Минимальная высота контейнера определяется как =100%= высоты тела, то есть, весь
+экран. Кроме того, этот же класс используется для составного селектора в цепочке, где =layout-*=,
+заданный у тела, определяет особенности раскладки.
+
+*** Боковая панель
+
+Код =AdminLTE= предполагает, что у нее есть левая боковая панель, которая нам тут, однако, не нужна. Тем
+не менее, чтобы не возникало ошибок в =JS=-коде, определим ее.
+
+#+BEGIN_SRC html :noweb yes :noweb-ref index:body:wrapper:Содержимое
+  <aside class="main-sidebar sidebar-dark-primary elevation-4">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <!-- SidebarSearch Form -->
+      <div class="form-inline">
+        <div class="input-group" data-widget="sidebar-search">
+          <input class="form-control form-control-sidebar" type="search" placeholder="Search" aria-label="Search">
+        </div>
+      </div>
+    </div>
+    <!-- /.sidebar -->
+  </aside>
+#+END_SRC
+
+Здесь оставлен только фрагмент, в котором есть элементы с классами =sidebar-search= (константа
+=SELECTOR_DATA_WIDGET= в =adminlte.js=) и =form-control= (константа =SELECTOR_SEARCH_INPUT). Вообще это
+все похоже на магию, поэтому пока оставим этот огрызок.
+
+Чтобы скрыть боковую панель, которая не нужна, добавим в тело "магический" класс-переключатель
+=sidebar-collapse=.
+
+#+BEGIN_SRC html :noweb-ref index:body:css-классы
+  sidebar-collapse
+#+END_SRC
+
+*** Навигационная панель
+
+Навигационная панель занимает всю верхнюю часть страницы.
+
+#+BEGIN_SRC html :noweb yes :noweb-ref index:body:wrapper:Содержимое
+  <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+    <<index:body:wrapper:nav:Правое-меню>>
+  </nav>
+  <!-- /.navbar -->
+#+END_SRC
+
+Навигационная панель сейчас содержит только один пункт --- =Выход=, помещенный в правое меню.
+
+#+BEGIN_SRC html :noweb yes :noweb-ref index:body:wrapper:nav:Правое-меню
+  <!-- Right navbar links -->
+  <ul class="navbar-nav ml-auto">
+    <li class="nav-item d-none d-sm-inline-block">
+      <a href="/logout" class="nav-link">Выход</a>
+    </li>
+  </ul>
+#+END_SRC
+
+*** Основная таблица
+
+В основной части выводится главная информация.
+
+#+BEGIN_SRC html :noweb yes :noweb-ref index:body:wrapper:Содержимое
+  <!-- Content Wrapper. Contains page content -->
+  <div class="content-wrapper">
+    <<index:body:wrapper:content:Заголовок>>
+
+    <<index:body:wrapper:content:Тело>>
+  <!-- /.content -->
+  </div>
+#+END_SRC
+
+Заголовок основной части для простоты содержит только Строку, совпадающую с названием страницы.
+
+#+BEGIN_SRC html :noweb yes :noweb-ref index:body:wrapper:content:Заголовок
+  <!-- Content Header (Page header) -->
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-12">
+          <h1>IT-Армія України: Монітор доступності ресурсів</h1>
+        </div>
+      </div>
+    </div><!-- /.container-fluid -->
+  </section>
+#+END_SRC
+
+Тело основной части содержит только одну таблицу. Тут, однако, используется понятие "карточки".
+
+#+BEGIN_SRC html :noweb yes :noweb-ref index:body:wrapper:content:Тело
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">
+              <<index:body:wrapper:content:Тело:Пейджер>>
+            </div>
+            <div class="card-body">
+              <<index:body:wrapper:content:Тело:Таблица>>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+#+END_SRC
+
+#+BEGIN_SRC html :noweb yes :noweb-ref index:body:wrapper:content:Тело:Пейджер
+  <p>Ця сторінка відображає доступність ресурсів, за якими спостерігає IT-Армія України.</p>
+
+  <p>Доступність ресурсу визначається за можливістю отримати доступ за traceroute з десяти різних
+    контрольних точок (зондів). Відсоток доступності вказує, скільки зондів отримують успішні
+    відповіді на свої запити до ресурсу.</p>
+
+  <p>Додатково визначається можливість отримати сертифікати захищеного з'єднання (SSL) з тих самих
+      точок.</p>
+
+  <p>Посилання дозволяють відкрити ресурс для перевірки за звичайною (HTTP) та захищеною (HTTPS)
+  адресою. Посилання CHECK відкриває ресурс для превірки на
+  сервісі <a href="https://check-host.net/" target="_blank">check-host.net</a> також за звичайною
+  адресою. На тому ж ресурсі можна перевірити ресурс за іншими ознаками.</p>
+
+  <p>Проект знаходиться в стані концепту, тому зараз усі результати впорядковуються спочатку за
+    доступністю, а потім за відсотком втрат.</p>
+
+  <p>Окрім зручного впорядкування планується також добавити перевірку шляху до ресурсу (TRACEROUTE)
+  за протоколом TCP.</p>
+
+  <p>Свої побажання з розвитку, пропозиції допомоги та інше пишіть мені
+    у <a href="https://t.me/kosenko1972">Telegram</a></p>
+#+END_SRC
+
+Сама таблица определеяется достаточно просто.
+
+#+BEGIN_SRC html :noweb yes :noweb-ref index:body:wrapper:content:Тело:Таблица
+  <table id="measurements" class="table table-bordered table-hover">
+    <thead>
+      <tr>
+        <th>Тема</th>
+        <th>Ресурс</th>
+        <th>Адреса</th>
+        <th>Остання перевірка</th>
+        <th>Trace</th>
+        <th>SSL</th>
+        <th>Мапа</th>
+        <th>Посилання</th>
+      </tr>
+    </thead>
+    <tbody>
+      <<index:body:wrapper:content:Тело:Таблица:Тело>>
+    </tbody>
+  </table>
+#+END_SRC
+
+Для этой таблицы определим дополнительные стили, все согласно шаблону.
+
+#+BEGIN_SRC html :noweb-ref index:head:Содержимое
+  <!-- DataTables -->
+  <link rel="stylesheet" href="../static/assets/plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+  <link rel="stylesheet" href="../static/assets/plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+#+END_SRC
+
+Определим =JS=-код для такой таблицы.
+
+#+BEGIN_SRC html :noweb-ref index:body:js-код
+  <!-- DataTables -->
+  <script src="../static/assets/plugins/datatables/jquery.dataTables.min.js"></script>
+  <script src="../static/assets/plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+  <script src="../static/assets/plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+  <script src="../static/assets/plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+
+  <!-- page script -->
+  <script>
+    $(function () {
+      $('#measurements').DataTable({
+        "paging": true,
+        "pageLength": 50,
+        "lengthChange": false,
+        "searching": true,
+        "ordering": true,
+        "info": true,
+        "autoWidth": false,
+        "responsive": true,
+        "language": {
+          "decimal": ".",
+          "thousands": " "
+        }
+      });
+    });
+  </script>
+#+END_SRC
+
+Определим тело таблицы.
+
+#+BEGIN_SRC html :noweb yes :noweb-ref index:body:wrapper:content:Тело:Таблица:Тело
+  {% for measurement in measurements %}
+  <tr>
+    <td>{{ measurement.topic }}</td>
+    <td>{{ measurement.resource }}</td>
+    <td>{{ measurement.address }}</td>
+    <td>{{ measurement.stamp }}</td>
+    <td>
+      <a href="https://atlas.ripe.net/measurements/{{ measurement.trace_id }}/#probes" target="_blank">{{ measurement.trace_access }}</a>
+    </td>
+    <td>
+      <a href="https://atlas.ripe.net/measurements/{{ measurement.ssl_id }}/#probes" target="_blank">{{ measurement.ssl_access }}</a>
+    </td>
+    <td>
+      <a href="https://atlas.ripe.net/measurements/{{ measurement.ssl_id }}/#map" target="_blank">Мапа</a>
+    </td>
+    <td>
+      <a href="http://{{ measurement.resource }}/" target="_blank">HTTP</a>
+      <a href="https://{{ measurement.resource }}/" target="_blank">HTTPS</a>
+      <a href="https://check-host.net/check-http?host={{ measurement.address }}" target="_blank">CHECK</a>
+    </td>
+  </tr>
+  {% endfor %}
+#+END_SRC
+
+*** Таблица пропущенных измерений
+
+Определим карточку пропущенных измерений
+
+*** Подвал
+
+Подвал занимает всю нижнюю часть страницы.
+
+#+BEGIN_SRC html :noweb yes :noweb-ref index:body:wrapper:Содержимое
+  <footer class="main-footer">
+    &copy; Для служебного пользования
+  </footer>
+#+END_SRC
+
